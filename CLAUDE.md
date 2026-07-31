@@ -125,15 +125,54 @@ logic di Server Component vs Client Component, kapan butuh Zustand vs cukup
 menyimpang dari struktur feature-based yang sudah disepakati.
 
 ### 2. Version control tetap bahan belajar
-Commit kecil, Conventional Commits (`feat:`, `fix:`, `refactor:`, `test:`,
-`chore:`, `docs:`), branching dijelaskan tiap kali dipakai — sama seperti
-kesepakatan di backend.
 
-### 3. Testing dibangun bareng
-- Component test pakai React Testing Library, MSW untuk mock network call
-  (bukan mock function manual) — jelaskan kenapa MSW lebih baik waktu pertama
-  kali dipakai, sama semangatnya dengan alasan `testcontainers-go` di backend
-- E2E (Playwright) menyusul di fase lanjut, belum sekarang
+**Git workflow konkret** (bukan cuma prinsip umum):
+- `main` diperlakukan seolah protected — fitur baru **selalu** di branch
+  terpisah, tidak pernah commit langsung ke `main`, meski kerja solo.
+- Naming branch: `feature/<nama-modul>` (misal `feature/customer-module`),
+  `fix/<ringkasan-bug>`, `chore/<ringkasan>` untuk kerjaan non-fitur (setup
+  tooling, dependency bump).
+- Commit kecil & sering pakai **Conventional Commits** (`feat:`, `fix:`,
+  `refactor:`, `test:`, `chore:`, `docs:`). Riwayat di dalam branch boleh
+  eksploratif/berantakan (itu gunanya branch) — yang penting rapi saat masuk `main`.
+- Fitur selesai → buka Pull Request ke `main`, tunggu CI hijau (lint/typecheck/test/build).
+- **Saya review diff-nya sendiri di GitHub UI sebelum merge** — bukan formalitas,
+  ini supaya saya benar-benar paham perubahannya, bukan cuma percaya laporan.
+  Jangan jalankan `gh pr merge` tanpa saya konfirmasi eksplisit.
+- Merge strategy: **squash merge** — riwayat `main` jadi satu commit rapi per
+  fitur, riwayat development yang berantakan tetap terekam di PR itu sendiri.
+- Rebase vs merge untuk sync branch dari `main` yang sudah maju: jelaskan opsinya
+  saat kejadian itu muncul, jangan asumsikan saya sudah tahu kapan pilih yang mana.
+
+> **Catatan (2026-08-01)**: skeleton awal (8 commit pertama) sempat langsung
+> masuk `main` sebelum aturan branch-protected ini eksplisit ditulis di sini.
+> Diperlakukan sebagai bootstrap exception yang sudah disepakati, bukan
+> dibongkar ulang — workflow branch+PR di atas berlaku penuh mulai dari
+> perubahan berikutnya.
+
+### 3. Testing dibangun bareng, bukan ditambahkan belakangan
+Prinsip ini **sama persis dengan backend, tidak boleh lebih longgar**:
+- Setup Jest + React Testing Library + MSW itu bagian dari skeleton awal,
+  bukan modul terpisah nanti. Skeleton belum selesai kalau belum ada minimal
+  1 test yang jalan (misal test form login) sebagai bukti infra testing-nya benar.
+- MSW dipakai untuk mock network call di test (intercept di level network,
+  bukan mock function `jest.fn()` manual) — jelaskan kenapa ini lebih baik
+  waktu pertama kali dipakai, sama semangatnya dengan alasan `testcontainers-go`
+  di backend: makin dekat ke kondisi nyata, makin sedikit asumsi salah yang lolos.
+- E2E (Playwright) boleh menyusul di fase lanjut setelah beberapa modul jadi,
+  tapi unit/component test tidak boleh ditunda.
+
+### 3b. Docker & CI — juga dari skeleton awal, bukan belakangan
+- `Dockerfile` multi-stage untuk Next.js (`output: 'standalone'`) dari skeleton
+  phase, bukan ditambah setelah banyak kode menumpuk
+- `docker-compose.yml` di repo ini cukup untuk jalankan frontend sendiri
+  (arahkan ke backend yang jalan terpisah, `BACKEND_URL` env var) — **bukan**
+  compose gabungan dengan backend, karena beda repo. Compose gabungan untuk
+  deployment nanti dibahas terpisah (kandidat: compose "infra" yang pull image
+  jadi dari registry, bukan build dari source dua repo sekaligus)
+- CI pipeline (GitHub Actions): mulai dari `lint → typecheck → test → build`,
+  jelaskan tiap kali menambah step baru apa yang dicegah/dipastikan — sama
+  seperti kesepakatan backend
 
 ### 4. Clean code & pemisahan tanggung jawab — ini concern utama saya di frontend
 - Komponen kecil, single responsibility — kalau ada file `.tsx` mulai
