@@ -41,3 +41,12 @@ jobs:
       # their own (e.g. this is what caught the workspace-root warning).
       - name: Build
         run: npm run build
+
+      # The Dockerfile is a separate build path from `npm run build` above -
+      # it runs npm ci and next build again inside its own deps/builder
+      # stages, so a green Build step doesn't guarantee the image itself
+      # builds (verified locally via WSL2 first, this closes the same gap
+      # in CI - runner ships Docker preinstalled, no setup action needed).
+      # No push: this only proves the image builds, not where it's stored.
+      - name: Docker build
+        run: docker build -t cnc-pm-frontend:ci .
