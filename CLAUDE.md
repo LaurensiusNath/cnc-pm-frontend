@@ -175,8 +175,18 @@ Prinsip ini **sama persis dengan backend, tidak boleh lebih longgar**:
   bukan mock function `jest.fn()` manual) — jelaskan kenapa ini lebih baik
   waktu pertama kali dipakai, sama semangatnya dengan alasan `testcontainers-go`
   di backend: makin dekat ke kondisi nyata, makin sedikit asumsi salah yang lolos.
-- E2E (Playwright) boleh menyusul di fase lanjut setelah beberapa modul jadi,
-  tapi unit/component test tidak boleh ditunda.
+- **E2E (Playwright)**: padanan `testcontainers-go` di frontend, tapi
+  diterjemahkan sesuai batas repo — testcontainers-go menyalakan Postgres
+  **asli** karena Postgres adalah dependency yang backend sendiri miliki/
+  kontrol. Backend (Go API + Postgres) **bukan** dependency yang repo frontend
+  ini miliki — beda repo (lihat 3b soal docker-compose gabungan). Jadi versi
+  frontend dari "test terhadap sesuatu yang nyata, bukan mock" adalah:
+  Playwright menjalankan **browser sungguhan** terhadap **`next start`
+  sungguhan** (bukan jsdom) — real rendering, real cookie/redirect behavior,
+  real routing — sementara batas ke backend tetap di-intercept (pakai
+  `page.route()` bawaan Playwright, bukan proses Go+Postgres beneran
+  di-docker-compose dari CI repo ini). Real untuk semua yang repo ini miliki,
+  mocked persis di batas repo yang sebenarnya beda kepemilikan.
 
 ### 3b. Docker & CI — juga dari skeleton awal, bukan belakangan
 - `Dockerfile` multi-stage untuk Next.js (`output: 'standalone'`) dari skeleton
