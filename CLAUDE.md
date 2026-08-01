@@ -20,8 +20,15 @@ folder yang scalable.
 - `docs/api-contract.md` — API contract backend v3 (salinan dari repo backend,
   **read-only reference** — kalau ada mismatch antara dokumen ini dan behavior
   API yang sebenarnya, verifikasi dulu ke backend asli, jangan asumsikan dokumen
-  ini selalu akurat 100% sampai dicek. Kalau ketemu mismatch, laporkan balik,
-  jangan diam-diam kerja sesuai asumsi sendiri)
+  ini selalu akurat 100% sampai dicek. **Kalau ketemu mismatch, perbaiki
+  `docs/api-contract.md` di PR yang sama** tempat mismatch itu ditemukan/dipakai
+  — bukan cuma dilaporkan verbal lalu dokumennya dibiarkan usang. Prinsip sama
+  dengan aturan "update ERD/api-contract di commit yang sama" di CLAUDE.md
+  backend; alasan yang sama juga: `docs/erd.md` di backend sempat cuma jadi
+  gambar di chat, tidak pernah benar-benar jadi file — `docs/api-contract.md`
+  di repo ini sendiri sempat mengalami versi kecil dari masalah itu: file-nya
+  baru benar-benar dibuat tanggal 2026-08-01, padahal sudah direferensikan
+  sejak skeleton awal 2026-07-31 seolah-olah ada)
 - Auth: httpOnly cookie (`access_token`), same-origin via proxy (`next.config.js`
   rewrites saat dev, reverse proxy saat production) — **bukan Bearer token di
   localStorage**. Ini keputusan sudah final, jangan diubah tanpa didiskusikan.
@@ -34,14 +41,13 @@ folder yang scalable.
 > perlu di-update manual juga — belum ada sinkronisasi otomatis antar repo.
 > Kalau kamu curiga dokumen ini sudah usang, bilang, jangan lanjut asumsi.
 
-> **Lesson learned (2026-07-31, setup skeleton awal)**: dokumen `api-contract.md`
-> sempat membingungkan soal path `/auth/login` — tertulis seolah endpoint itu
-> tanpa prefix `/api/v1` (disamakan dengan `/health`), padahal di
-> `cmd/api/main.go` route ini didaftarkan lewat `router.Group("/api/v1")` juga,
-> sama seperti endpoint bisnis lain. Yang benar-benar tanpa prefix cuma
-> `/health`; `/auth/login` cuma tanpa **token**, bukan tanpa prefix. Verifikasi
-> ke `handler.go`/`main.go` backend asli sebelum percaya baris "kecuali X dan Y"
-> di dokumen kontrak, terutama untuk detail path.
+> **Lesson learned (2026-07-31 → 2026-08-01)**: `/auth/login` path prefix
+> sempat salah dibaca dari dokumen kontrak (lihat detail & perbaikannya
+> langsung di `docs/api-contract.md`, bagian catatan di atas Base URL — bukan
+> diduplikasi di sini, supaya cuma ada satu tempat yang perlu diperbarui kalau
+> ada detail path lain yang perlu dikoreksi lagi). Verifikasi ke `handler.go`/
+> `main.go` backend asli sebelum percaya baris "kecuali X dan Y" di dokumen
+> kontrak, terutama untuk detail path.
 
 ## Catatan versi Next.js (penting, baca sebelum sentuh routing/proxy)
 
@@ -95,7 +101,10 @@ Skeleton awal sudah dibuat (2026-07-31): init project, dependency
 (TanStack Query, RHF+Zod, Axios, shadcn/ui), `next.config.js` rewrites,
 `lib/axios.ts` + `lib/queryClient.ts`, `proxy.ts` (proteksi route berbasis
 cookie), modul Auth minimal (login + logout + halaman dashboard placeholder
-di route group `(protected)`). **Belum ada modul Customer/Job/Invoice** —
+di route group `(protected)`), testing (Jest+RTL+MSW), Dockerfile +
+docker-compose.yml, CI (GitHub Actions). `docs/api-contract.md` baru benar-benar
+jadi file per 2026-08-01 (lihat catatan di "Referensi Dokumen" di atas).
+**Belum ada modul Customer/Job/Invoice** —
 folder `features/customer`, `features/job`, `features/invoice` sengaja belum
 dibuat kosong (git tidak melacak folder kosong, dan belum ada isinya) — akan
 dibuat saat modul itu mulai dikerjakan, mengikuti pola `features/auth` sebagai
