@@ -199,6 +199,14 @@ Prinsip ini **sama persis dengan backend, tidak boleh lebih longgar**:
   dulu ke backend asli (curl/baca handler), jangan tebak dari dokumentasi
   yang mungkin usang
 - Tipe form di-infer dari Zod schema, jangan didefinisikan dobel manual
+- **Tipe dari satu sumber, padanan `sqlc` di backend**: `sqlc` generate Go
+  struct dari `db/queries/*.sql` supaya skema dan kode tidak pernah drift;
+  frontend tidak punya codegen setara, tapi prinsipnya sama — tiap bentuk
+  response `api-contract.md` (`Customer`, `Job`, `Invoice`, dst) didefinisikan
+  **sekali** di `features/<domain>/types.ts` (pola yang sama dengan
+  `types/api.ts` untuk `ApiResponse<T>`), dipakai di seluruh
+  `features/<domain>/api/*Service.ts` dan komponennya. Jangan biarkan tiap
+  komponen menulis ulang bentuk `Customer`/`Job` versinya sendiri-sendiri.
 
 ### 5. State management — pisahkan server state dari client state
 Data dari API **selalu** lewat TanStack Query, jangan disalin ke `useState`
