@@ -95,6 +95,13 @@ types/api.ts          -> tipe shared (ApiResponse<T>, dst)
 `services/` global): supaya struktur frontend selaras 1:1 dengan modul backend
 (`internal/customer`, `internal/job`, dst) — mental model dua repo konsisten.
 
+**Padanan istilah dengan backend** (biar tidak bolak-balik didiskusikan ulang):
+`features/<domain>/api/*Service.ts` adalah padanan `repository.go` (satu-satunya
+tempat yang tahu bentuk request/response mentah ke backend, komponen tidak pernah
+fetch langsung) — **per-domain, bukan folder global `lib/api/`**. `hooks/use*.ts`
+padanan `service.go` (logic, loading/error state, cache — terpisah dari tampilan).
+Komponen padanan `handler.go` yang tipis (cuma orkestrasi/render).
+
 ## Status Saat Ini
 
 Skeleton awal sudah dibuat (2026-07-31): init project, dependency
