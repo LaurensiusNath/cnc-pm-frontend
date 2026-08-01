@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Matches the Dockerfile's runtime base (node:22-alpine) so a
+          # green CI run means the same Node major that actually ships.
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Cheapest and fastest check first: catches style/obvious mistakes
+      # before spending time on anything that needs real compilation.
+      - name: Lint
+        run: npm run lint
+
+      # Catches type errors across the whole project - cheaper than test/build
+      # since it doesn't execute any code, just checks it.
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      # Confirms behavior, not just types - runs after typecheck since a
+      # test suite that doesn't even typecheck isn't worth executing.
+      - name: Test
+        run: npx jest --ci
+
+      # Most expensive and most end-to-end: confirms the production bundle
+      # actually compiles, which lint/typecheck/test don't guarantee on
+      # their own (e.g. this is what caught the workspace-root warning).
+      - name: Build
+        run: npm run build
+
+      # The Dockerfile is a separate build path from `npm run build` above -
+      # it runs npm ci and next build again inside its own deps/builder
+      # stages, so a green Build step doesn't guarantee the image itself
+      # builds (verified locally via WSL2 first, this closes the same gap
+      # in CI - runner ships Docker preinstalled, no setup action needed).
+      # No push: this only proves the image builds, not where it's stored.
+      - name: Docker build
+        run: docker build -t cnc-pm-frontend:ci .

@@ -1,0 +1,22 @@
+# Runs the frontend's built image alone - it expects a backend already
+# running elsewhere (this repo's Dockerfile only builds the Next.js app;
+# combining it with the backend's own compose setup is a separate,
+# deployment-time concern since they're different repos, see CLAUDE.md).
+#
+# The browser only ever talks to this container's origin (localhost:3000);
+# next.config.js's rewrites() proxies /api/* server-side to BACKEND_URL,
+# so the httpOnly cookie auth strategy still works the same way it does
+# under `next dev`.
+services:
+  frontend:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      # host.docker.internal resolves to the host machine from inside the
+      # container (works out of the box on Docker Desktop; extra_hosts
+      # below makes it work on Linux too) - override if the backend is
+      # somewhere else, e.g. another container or a real host.
+      BACKEND_URL: ${BACKEND_URL:-http://host.docker.internal:8080}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
