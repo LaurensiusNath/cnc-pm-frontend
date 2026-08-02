@@ -29,10 +29,18 @@ export const createJobSchema = z.object({
   machine_id: z.string().optional(),
   title: z.string().trim().min(1, "Judul wajib diisi"),
   description: optionalText,
-  scheduled_date: z.string().optional(),
+  // Same blank -> undefined transform as description, for the same
+  // reason: an untouched date input's value is "", which should omit
+  // the key rather than send scheduled_date: "" (backend's
+  // parseOptionalDate does treat "" same as absent, so this isn't a
+  // correctness fix, just consistency with the rest of this schema).
+  scheduled_date: optionalText,
 });
 
-export type CreateJobInput = z.infer<typeof createJobSchema>;
+// Same z.input/z.output split as Customer's schema - the description
+// transform (blank -> undefined) makes the pre/post-parse shapes diverge.
+export type CreateJobFormValues = z.input<typeof createJobSchema>;
+export type CreateJobInput = z.output<typeof createJobSchema>;
 
 export const updateJobStatusSchema = z.object({
   status: z.enum(
