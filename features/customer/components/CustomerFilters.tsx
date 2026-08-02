@@ -12,6 +12,14 @@ import {
 import { customerTypeOptions } from "../schema";
 import type { CustomerType } from "../types";
 
+// Select.Value renders the raw value by default (confirmed in Base UI's
+// docs), not an auto-resolved label - without this, the trigger would
+// show "badan_usaha"/"all" literally once selected.
+function customerTypeLabel(value: string) {
+  if (value === "all") return "Semua Tipe";
+  return customerTypeOptions.find((opt) => opt.value === value)?.label ?? value;
+}
+
 interface CustomerFiltersProps {
   searchValue: string;
   onSearchChange: (value: string) => void;
@@ -41,7 +49,11 @@ export function CustomerFilters({
         }
       >
         <SelectTrigger className="sm:w-48" aria-label="Filter tipe customer">
-          <SelectValue placeholder="Semua Tipe" />
+          <SelectValue placeholder="Semua Tipe">
+            {(value: string | null) =>
+              value ? customerTypeLabel(value) : "Semua Tipe"
+            }
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Semua Tipe</SelectItem>

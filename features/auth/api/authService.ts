@@ -16,4 +16,13 @@ export const authService = {
   logout: async (): Promise<void> => {
     await api.post("/v1/auth/logout");
   },
+
+  // Response shape is deliberately identical to login's (see handler.go's
+  // comment on Me) - reuses the same { user: AuthUser } unwrap.
+  me: async (): Promise<AuthUser> => {
+    const { data } = await api.get<ApiSuccess<{ user: AuthUser }>>(
+      "/v1/auth/me",
+    );
+    return data.data.user;
+  },
 };

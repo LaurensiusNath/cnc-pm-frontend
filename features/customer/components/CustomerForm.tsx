@@ -103,7 +103,12 @@ export function CustomerForm({
             }
           >
             <SelectTrigger id="customer_type" aria-label="Tipe Customer">
-              <SelectValue placeholder="Pilih tipe" />
+              <SelectValue placeholder="Pilih tipe">
+                {(value: string | null) =>
+                  customerTypeOptions.find((opt) => opt.value === value)
+                    ?.label ?? value
+                }
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {customerTypeOptions.map((opt) => (

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { Pagination } from "@/components/Pagination";
 import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -12,7 +13,6 @@ import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { useCustomers } from "../hooks/useCustomers";
 import type { CustomerListParams, CustomerType } from "../types";
 import { CustomerFilters } from "./CustomerFilters";
-import { CustomerPagination } from "./CustomerPagination";
 import { CustomerTable } from "./CustomerTable";
 
 const PAGE_SIZE = 20;
@@ -119,10 +119,11 @@ export function CustomerListPage() {
             <p className="text-xs text-muted-foreground">Memperbarui...</p>
           )}
           {data && (
-            <CustomerPagination
+            <Pagination
               page={data.meta.page}
               total={data.meta.total}
               limit={PAGE_SIZE}
+              itemLabel="customer"
               onPageChange={(newPage) =>
                 updateParams({ page: String(newPage) })
               }
