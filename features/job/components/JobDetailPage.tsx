@@ -11,6 +11,7 @@ import { useJob } from "../hooks/useJob";
 import { JobAssignTechnicianForm } from "./JobAssignTechnicianForm";
 import { JobCostsSection } from "./JobCostsSection";
 import { JobInfoSection } from "./JobInfoSection";
+import { JobInvoiceSection } from "./JobInvoiceSection";
 import { JobStatusChangeForm } from "./JobStatusChangeForm";
 import { JobStatusHistoryTimeline } from "./JobStatusHistoryTimeline";
 
@@ -55,7 +56,10 @@ export function JobDetailPage({ jobId }: JobDetailPageProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <JobInfoSection job={job} customer={customer} users={users} />
+      <div className="flex items-start justify-between gap-4">
+        <JobInfoSection job={job} customer={customer} users={users} />
+        <JobInvoiceSection jobId={jobId} jobStatus={job.status} />
+      </div>
 
       <div>
         <h2 className="mb-2 text-lg font-semibold">Riwayat Status</h2>
