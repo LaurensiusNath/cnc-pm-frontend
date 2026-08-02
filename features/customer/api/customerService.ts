@@ -7,6 +7,7 @@ import type {
   CustomerDetail,
   CustomerListMeta,
   CustomerListParams,
+  Machine,
 } from "../types";
 
 export const customerService = {
@@ -50,5 +51,15 @@ export const customerService = {
 
   remove: async (id: string): Promise<void> => {
     await api.delete(`/v1/customers/${id}`);
+  },
+
+  // Standalone endpoint (not the nested `machines` on customer detail) -
+  // used for the create-job cascading select, which only needs machines
+  // for one customer without fetching that customer's full detail.
+  listMachines: async (customerId: string): Promise<Machine[]> => {
+    const { data } = await api.get<ApiSuccess<Machine[]>>(
+      `/v1/customers/${customerId}/machines`,
+    );
+    return data.data;
   },
 };

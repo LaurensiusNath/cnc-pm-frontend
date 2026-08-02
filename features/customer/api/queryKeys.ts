@@ -7,4 +7,6 @@ export const customerKeys = {
     [...customerKeys.lists(), params] as const,
   details: () => [...customerKeys.all, "detail"] as const,
   detail: (id: string) => [...customerKeys.details(), id] as const,
+  machines: (customerId: string) =>
+    [...customerKeys.all, "machines", customerId] as const,
 };
