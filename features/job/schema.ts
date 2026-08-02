@@ -50,7 +50,10 @@ export const updateJobStatusSchema = z.object({
   notes: optionalText,
 });
 
-export type UpdateJobStatusInput = z.infer<typeof updateJobStatusSchema>;
+// Same z.input/z.output split as createJobSchema - notes' transform
+// (blank -> undefined) makes the pre/post-parse shapes diverge.
+export type UpdateJobStatusFormValues = z.input<typeof updateJobStatusSchema>;
+export type UpdateJobStatusInput = z.output<typeof updateJobStatusSchema>;
 
 export const assignTechnicianSchema = z.object({
   technician_id: z.string().min(1, "Teknisi wajib dipilih"),
