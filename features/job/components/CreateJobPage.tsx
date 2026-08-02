@@ -109,7 +109,12 @@ export function CreateJobPage() {
                 placeholder={
                   selectedCustomer ? "Pilih mesin (opsional)" : "Pilih customer dulu"
                 }
-              />
+              >
+                {(value: string | null) =>
+                  machines?.find((machine) => machine.id === value)
+                    ?.machine_name ?? value
+                }
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {machines?.map((machine) => (
