@@ -1,7 +1,8 @@
 # API Contract — CNC Service Project Management App
-### v3 — disinkronkan dengan hasil audit implementasi (2026-07-30)
-### Perubahan dari v2: tambah modul Auth/User, Notification; perbaiki status invoice;
-### wajibkan nested data di GET /jobs/{id}; dokumentasikan bentuk `meta` per endpoint
+### v4 — disinkronkan dengan PR #15 backend (2026-08-02, prep modul Invoice frontend)
+### Perubahan dari v3: tambah `GET /jobs/{id}/invoice`; dokumentasikan `InvoiceListItem`
+### (field flat `job_code`/`customer_name` di `GET /invoices`); Catatan Desain #7 soal
+### state-machine `PATCH /invoices/{id}/status` dan keputusan pembatasan opsi status di UI
 
 > **Status di repo ini**: salinan manual dari repo backend (`cnc-pm-backend`), **read-only
 > reference** — lihat catatan di `CLAUDE.md` bagian "Referensi Dokumen". Kalau kontrak
@@ -145,6 +146,9 @@ Body: `{ status (required, requested|scheduled|in_progress|completed|cancelled),
 Body: `{ technician_id (required), expected_updated_at (required, RFC3339) }`
 **Optimistic locking**: `expected_updated_at` dicocokkan ke `jobs.updated_at` saat ini di dalam `WHERE` clause update. Kalau tidak cocok (sudah diubah request lain) → `409 CONFLICT`. Dipilih di atas pessimistic locking secara sadar, karena pessimistic cuma menyerialkan urutan tulis (tetap silent-overwrite), sedangkan optimistic mendeteksi & menolak konfliknya secara eksplisit.
 
+### `GET /jobs/{id}/invoice` — **baru (v4)**, cek job ini sudah punya invoice atau belum
+Tanpa body/query. Response `200`: object Invoice, bentuk **sama persis** dengan response `POST /jobs/{id}/invoice` di bawah. Response `404` kalau job ini belum punya invoice — bukan `200` dengan `data: null`, supaya frontend gampang membedakan "belum di-invoice" (state valid) dari "request gagal". Dipakai di halaman detail Job untuk menentukan tombol "Generate Invoice" vs "Lihat Invoice".
+
 ### Sub-resource: Job Costs
 `POST /api/v1/jobs/{id}/costs` — body: `{ cost_type (required, labor|spare_part|transport|other), description (required), quantity (required), purchase_price, selling_price (required) }`. `purchase_price` ditolak `400` kalau `cost_type != spare_part`. `subtotal` generated column, tidak bisa diisi client.
 `GET /api/v1/jobs/{id}/costs` — tanpa pagination. `meta: { total_selling, total_margin }` (bentuk khusus, beda dari list lain — sengaja, karena kebutuhannya beda: total buat subtotal invoice, margin buat insight, bukan buat navigasi halaman).
@@ -178,8 +182,13 @@ Body: `{ nomor_faktur_pajak (required) }`
 Body: `{ status (required, draft|sent|paid|overdue|cancelled) }`
 **`overdue` sebaiknya di-set otomatis**, bukan cuma manual: perluas `ReminderService` (ticker per jam yang sudah ada untuk reminder jadwal) supaya juga menandai invoice `sent` yang `due_date`-nya sudah lewat dan belum lunas jadi `overdue`. `cancelled` tetap manual (keputusan sengaja membatalkan invoice).
 
-### `GET /api/v1/invoices`, `GET /api/v1/invoices/{id}`
-`meta: { page, total }` untuk list. Detail invoice: object polos.
+> **Tidak ada state-machine enforcement di endpoint ini** (dikonfirmasi live 2026-08-02) — lihat Catatan Desain #7 untuk detail dan konsekuensi keputusan UI frontend.
+
+### `GET /api/v1/invoices`
+`meta: { page, total }`. Tiap item response adalah **`InvoiceListItem`** — **baru (v4)**: object `Invoice` polos **plus** dua field flat tambahan hasil JOIN ke `jobs`+`customers` — `job_code`, `customer_name`. Sengaja flat, bukan nested object job/customer penuh (payload list harus tetap ringan).
+
+### `GET /api/v1/invoices/{id}`
+Object `Invoice` polos (**bukan** `InvoiceListItem`) — sengaja **tidak** mendapat field flat tambahan. Halaman detail sudah bisa link balik ke job asal lewat `job_id` yang ada.
 
 ### `POST /api/v1/invoices/{id}/payments`
 Body: `{ amount (required), payment_method (required, transfer|cash|other), bukti_potong_pph23_ref, notes }`
@@ -223,6 +232,29 @@ Tidak ada endpoint HTTP publik untuk modul ini saat ini — murni internal, dipi
    mau ditambah aturan urutan, ini keputusan sadar yang perlu didiskusikan dulu (dan
    didokumentasikan di sini), bukan asumsi diam-diam dari salah satu sisi (frontend atau
    backend).
+7. **Kenapa `PATCH /invoices/{id}/status` juga tidak punya state-machine enforcement di backend,
+   sama seperti Job — tapi frontend-nya diperlakukan BEDA dari Job?** Dikonfirmasi lewat
+   verifikasi live (2026-08-02): `draft→paid` (skip `sent`), `paid→draft` (mundur), bahkan
+   `cancelled→sent` (membangkitkan invoice yang sudah dibatalkan), semua diterima `200`.
+   Satu-satunya validasi adalah `Status.Valid()` (5 nilai enum) dan `CHECK` constraint di kolom
+   yang mengecek hal sama di DB.
+   **Keputusan berbeda dari Job**: untuk invoice, frontend **sengaja membatasi** opsi status
+   manual di UI — bukan meniru kelonggaran backend seperti pola Job. Alasannya, konsekuensi
+   salah-set status di sini finansial nyata, bukan cuma metadata workflow:
+   - `paid` seharusnya **di-derive otomatis** dari `SUM(payments) >= total` (lihat
+     `POST /invoices/{id}/payments`). Kalau UI membolehkan set manual ke `paid` tanpa payment
+     yang benar-benar tercatat, itu berarti piutang dianggap lunas secara sistem padahal belum —
+     berdampak langsung ke laporan keuangan, salah satu masalah asli yang mau diselesaikan
+     proyek ini.
+   - `overdue` juga didesain auto-set lewat `ReminderService`. Tidak ada alasan bisnis nyata
+     untuk admin men-set ini manual.
+   - `cancelled` tetap keputusan manual yang sah (dikonfirmasi sengaja di desain awal).
+
+   Maka UI invoice **cuma mengekspos transisi manual `draft→sent` dan `→cancelled`**;
+   `paid`/`overdue` tidak pernah jadi pilihan yang bisa diklik user, ditampilkan sebagai badge
+   read-only saja. Backend sendiri tetap tidak menegakkan apa-apa di luar validasi enum
+   (konsisten dengan keputusan "belum perlu state-machine di backend" secara arsitektur) —
+   pembatasan murni ditegakkan di layer UI, bukan API.
 
 ---
 
