@@ -45,6 +45,12 @@ Response `401`: pesan identik untuk email tidak ditemukan ATAU password salah (s
 ### `POST /api/v1/auth/logout` — butuh token valid (cookie/Bearer)
 Response `200`: set cookie `access_token` dengan `Max-Age=0` (hapus cookie di browser). Body: `{ "success": true, "data": {} }`.
 
+### `GET /api/v1/auth/me` — butuh token valid (cookie/Bearer)
+"Siapa saya" untuk user yang sedang login. Response `200`: **bentuk identik dengan body
+`POST /auth/login`** — `{ "success": true, "data": { "user": { "id", "name", "email", "role" } } }`
+(sengaja dibuat sama persis, supaya frontend reuse satu tipe TypeScript untuk keduanya,
+bukan definisi dobel). Diverifikasi dari `internal/auth/handler.go` (`Me`).
+
 ### Auth Middleware — `RequireAuth`
 **Dual support**: baca token dari cookie `access_token` (jalur utama untuk frontend Next.js) **atau** header `Authorization: Bearer <token>` (tetap didukung untuk keperluan lain — testing manual, tooling, kemungkinan client non-browser di masa depan). Cookie diprioritaskan kalau keduanya ada.
 
@@ -58,7 +64,24 @@ Response `200`: set cookie `access_token` dengan `Max-Age=0` (hapus cookie di br
 Body: `{ "name", "email", "password" (min 8 char), "role" (owner|admin|teknisi) }`
 Response `201`: object User **tanpa** `password_hash`.
 
-> **Backlog**: belum ada `GET /users`, `PUT /users/{id}`, `DELETE /users/{id}`. Cukup untuk kebutuhan sekarang (akun dibuat manual oleh owner/admin), tapi perlu ditambah kalau jumlah teknisi bertambah banyak.
+### `GET /api/v1/users` — role `owner`/`admin` **saja, bukan semua user login**
+> **Koreksi (2026-08-02, ditemukan saat modul Job)**: sempat tertulis di sini seolah
+> `GET /users` belum ada — sudah ada, terverifikasi di `internal/user/handler.go` dan
+> didaftarkan di `adminGroup` (`cmd/api/main.go`). **Penting untuk desain frontend**:
+> endpoint ini `RequireAuth` + `requireAdmin`, artinya user role `teknisi` mendapat `403`.
+> Tapi `PATCH /jobs/{id}/status` (siapa saja yang login boleh, termasuk teknisi) tetap
+> mencatat `changed_by` di `job_status_history` — jadi ada UUID user di riwayat status yang
+> **tidak semua role login bisa resolve jadi nama** lewat endpoint ini. Frontend perlu
+> menangani ini secara graceful (fallback tampilan), bukan asumsi endpoint ini selalu
+> bisa dipanggil oleh siapapun yang sedang login.
+
+Query: `role` (opsional, filter exact-match salah satu `owner|admin|teknisi`).
+Response `200`: `data` array of User **tanpa** `password_hash`, **tanpa pagination/meta**
+(jumlah staf diasumsikan selalu kecil, sama alasannya dengan `GET /customers/{id}/machines`).
+
+> **Backlog**: belum ada `PUT /users/{id}`, `DELETE /users/{id}`. Cukup untuk kebutuhan
+> sekarang (akun dibuat manual oleh owner/admin), tapi perlu ditambah kalau jumlah teknisi
+> bertambah banyak.
 
 ---
 
@@ -191,6 +214,15 @@ Tidak ada endpoint HTTP publik untuk modul ini saat ini — murni internal, dipi
 3. **Kenapa `subtotal` di `job_costs` jadi `GENERATED ALWAYS AS ... STORED` column di level database, bukan cuma dihitung di Go?** Menjamin konsistensi di level data itu sendiri — bahkan kalau ada write langsung ke DB di luar aplikasi (migrasi data, query manual), subtotal tidak akan pernah nyasar dari `selling_price * quantity`.
 4. **Kenapa `PATCH /jobs/{id}/assign` pakai optimistic locking, bukan pessimistic seperti di payment?** Kasusnya beda: di payment, kita *mau* request kedua menunggu lalu diproses berurutan (uang tetap harus tercatat semua). Di assign, kita *mau* request kedua **ditolak dan diberi tahu ada konflik** (bukan cuma mengantre lalu diam-diam menimpa) — supaya admin kedua sadar perlu re-check kondisi terbaru sebelum assign ulang.
 5. **Kenapa notifikasi "fire-and-forget"?** Karena notifikasi itu pendukung, bukan sumber kebenaran finansial — kalau email gagal terkirim, itu tidak boleh membatalkan invoice yang sudah sah dibuat. Beda prinsip dengan transaksi finansial yang harus atomic.
+6. **Apakah `PATCH /jobs/{id}/status` menegakkan urutan transisi tertentu (state machine)?**
+   **Tidak** — dikonfirmasi eksplisit saat modul Job frontend dibangun (2026-08-02), dicek di
+   tiga lapis: `domain.go` (`Job.Validate()`), `service.go` (`UpdateStatus`), dan
+   `repository.go` (`UpdateJobStatus`, tidak ada `WHERE` berbasis status lama). Ketiganya cuma
+   memvalidasi status baru termasuk salah satu dari 5 nilai enum — transisi apapun diterima
+   (termasuk `requested` → `completed` langsung, atau mundur dari `cancelled`). Kalau nanti
+   mau ditambah aturan urutan, ini keputusan sadar yang perlu didiskusikan dulu (dan
+   didokumentasikan di sini), bukan asumsi diam-diam dari salah satu sisi (frontend atau
+   backend).
 
 ---
 
