@@ -111,21 +111,26 @@ cookie), modul Auth minimal (login + logout + halaman dashboard placeholder
 di route group `(protected)`), testing (Jest+RTL+MSW), Dockerfile +
 docker-compose.yml, CI (GitHub Actions). `docs/api-contract.md` baru benar-benar
 jadi file per 2026-08-01 (lihat catatan di "Referensi Dokumen" di atas).
-**Belum ada modul Customer/Job/Invoice** —
-folder `features/customer`, `features/job`, `features/invoice` sengaja belum
-dibuat kosong (git tidak melacak folder kosong, dan belum ada isinya) — akan
-dibuat saat modul itu mulai dikerjakan, mengikuti pola `features/auth` sebagai
-percontohan.
+
+**Modul Customer selesai** (2026-08-01): list+pagination+search+filter,
+create, edit, delete, detail+machines read-only — jadi percontohan pola
+service→hook→komponen yang diikuti modul berikutnya.
+
+**Modul Job selesai** (2026-08-02, PR #4): list+filter status/customer
+(searchable), create dengan cascading customer→machine, detail dengan
+status_history+costs+assign teknisi (409 optimistic-lock conflict eksplisit
+di-handle, bukan cuma di-generic-kan), navbar current-user via `GET /auth/me`.
+Ini modul yang melahirkan sebagian besar pola di bagian "Pola & Gotcha
+Teknis" di bawah — **wajib dibaca sebelum mulai modul baru**, jangan
+"temukan ulang" dari nol.
+
+**Modul Invoice/Costing** — sedang berjalan (2026-08-02), lihat
+"Pola & Gotcha" di bawah plus `docs/api-contract.md` item 7 Catatan Desain
+untuk keputusan pembatasan status manual di UI (beda dari pola Job).
 
 Urutan implementasi modul yang direncanakan: **Auth (skeleton) → Customer →
 Job → Costing/Invoice → Dashboard** — mengikuti urutan yang sama dengan
 backend, supaya modul Customer tetap jadi percontohan pola di kedua sisi.
-
-**Known gap yang sudah dicatat, jangan bikin workaround sendiri**: backend
-belum punya `GET /auth/me`, jadi frontend belum bisa tahu "siapa user yang
-sedang login" setelah refresh halaman/tab baru. Ini akan ditambahkan di
-backend dulu sebelum dikerjakan di sini — jangan simpan data user di cookie
-non-httpOnly atau localStorage sebagai workaround tanpa didiskusikan dulu.
 
 ---
 
@@ -230,6 +235,83 @@ dibiarkan lanjut dengan pemahaman yang salah, termasuk soal React/Next.js
 patterns, bukan cuma soal Go.
 
 ---
+
+## Pola & Gotcha Teknis yang Sudah Ditemukan (Modul Customer & Job, 2026-08-01 → 2026-08-02)
+
+Jangan biarkan Invoice (atau modul berikutnya) "menemukan ulang" ini dari nol
+— pola berikut sudah terbukti dan wajib diikuti konsisten:
+
+- **shadcn/ui di project ini berbasis `@base-ui/react`, BUKAN Radix.**
+  Jangan pakai pola `asChild` ala Radix untuk render custom element (misal
+  `<Button asChild><Link>...`) — Base UI pakai prop `render`, atau untuk
+  kasus link cukup pakai `buttonVariants()` langsung ke `<Link>`. Salah pakai
+  pola Radix di sini berisiko jadi bug aksesibilitas senyap.
+- **List page state (search/filter/page) hidup di URL query param**,
+  bukan `useState` lokal — supaya bisa di-bookmark, back/forward browser
+  jalan benar, dan tidak kehilangan posisi saat navigasi ke halaman lain.
+  Pola ini **wajib diikuti sama persis** untuk list Invoice.
+- **Sinkronisasi state dari URL: pakai "adjust state during render"**,
+  BUKAN `useEffect` + `setState` — `react-hooks/set-state-in-effect` akan
+  error kalau dilanggar. Bandingkan value URL vs state sebelumnya langsung
+  di badan komponen, panggil `setState` langsung kalau berubah.
+- **Form dengan Zod `.transform()`**: `z.input<>` (tipe untuk state form,
+  dipakai RHF) beda dari `z.output<>` (tipe hasil transform, dikirim ke API)
+  — export dua tipe terpisah, pakai signature 3-generic
+  `useForm<Values, Context, TransformedValues>` dari RHF. Sudah dipakai
+  berulang di form Customer, Job, dan Job Costs (field numeric dari string
+  input) — akan muncul lagi di form generate-invoice dan add-payment.
+- **`watch()` dari RHF di-flag React Compiler** (tidak stabil untuk
+  optimisasi) — pakai `useWatch({ control, name })` sebagai gantinya.
+- **Field yang di-destructure-buang sebelum dikirim ke API** (misal
+  `customer_type` yang immutable saat edit): `eslint.config.mjs` sudah
+  punya `ignoreRestSiblings: true` untuk rule `no-unused-vars` — pola
+  `const { fieldX, ...rest } = values` ini akan muncul lagi untuk field
+  immutable lain, tidak perlu setup ulang.
+- **Modal vs halaman terpisah untuk form**: pola project ini **halaman
+  terpisah** (`/resource/new`, `/resource/[id]/edit`), bukan dialog — karena
+  state list sudah di URL (alasan utama orang pakai modal jadi tidak
+  relevan), dan supaya konsisten antara Create/Edit. `AlertDialog` cuma
+  untuk konfirmasi aksi destruktif (delete).
+- **Nilai uang dari backend adalah JSON number, bukan string** (dikonfirmasi
+  dari `decimal.MarshalJSONWithoutQuotes = true` di backend, bukan tebakan).
+  **JANGAN PERNAH lakukan aritmatika sendiri di sisi frontend terhadap nilai
+  ini** — selalu tampilkan apa adanya dari backend (yang sudah presisi pakai
+  `shopspring/decimal`). Kalau butuh preview/estimasi UI-only sebelum submit
+  (misal "sisa tagihan" di halaman invoice), pakai library decimal-safe
+  (`decimal.js`), jangan pengurangan/penjumlahan `number` biasa — itu balik
+  lagi ke masalah presisi float yang sudah sengaja dihindari di backend.
+- **Base UI `<Select.Value>` render raw stored value by default, BUKAN label
+  yang sudah di-resolve** — kalau tidak ditangani, select akan tampilkan
+  UUID/value mentah ke user, bukan nama. Selalu pakai pola children-render-function:
+  `<SelectValue>{(value) => options.find(o => o.value === value)?.label ?? value}</SelectValue>`.
+  Berlaku untuk SETIAP pemakaian Select di seluruh app, bukan cuma yang lagi dikerjakan.
+- **RHF `valueAsNumber: true` menghasilkan `NaN` untuk input kosong, BUKAN
+  `undefined`** — ini diam-diam mematahkan pengecekan `=== undefined` di
+  Zod `superRefine`. Pakai `setValueAs: (v) => (v === "" ? undefined : Number(v))`
+  sebagai gantinya untuk field numeric optional.
+- **Untuk error 403/404 yang merupakan state valid** (permission denied
+  deterministik, atau "belum ada data" seperti `GET /jobs/{id}/invoice`
+  sebelum invoice dibuat), set `retry: false` di query/mutation TanStack
+  Query — retry cuma buang request percuma untuk state yang tidak akan
+  berubah dengan diulang. Untuk kasus 404-sebagai-state-valid (bukan
+  error), tangani `isError` sebagai cabang render normal ("belum ada
+  invoice"), **bukan** ditampilkan sebagai toast/error banner.
+- **Searchable/async select**: gunakan komponen generic `RemoteSearchSelect<T>`
+  (pola "hook-as-prop": komponen terima `useOptions(query)` sebagai prop,
+  tidak tahu-menahu soal entity spesifik) — sudah ada di `components/` sejak
+  modul Job, reuse untuk entity picker lain (jangan bikin versi khusus baru
+  per modul). Debounce 400ms + skip re-search saat user memilih (bukan
+  mengetik) sudah built-in di komponen ini.
+- **Pagination generic**: `components/Pagination.tsx` (diekstrak dari
+  modul Customer) menerima prop `itemLabel: string` untuk teks count —
+  reuse ini, jangan bikin komponen pagination baru per modul.
+- **Pembatasan opsi status di UI tidak selalu berarti backend menegakkan
+  state-machine** — Job dan Invoice sama-sama tidak punya enforcement di
+  backend, tapi UI-nya sengaja beda (Job bebas, Invoice dibatasi) karena
+  beda kategori risiko (workflow metadata vs dampak finansial). Kalau ragu
+  perlu dibatasi atau tidak untuk domain baru, lihat kerangka alasan di
+  `docs/api-contract.md` Catatan Desain #6 vs #7, bukan asumsi salah satu
+  polanya "yang benar" secara universal.
 
 ## Konvensi Kode
 
