@@ -1,10 +1,11 @@
-export default function DashboardPage() {
+import { Suspense } from "react";
+
+import { DashboardPage } from "@/features/dashboard/components/DashboardPage";
+
+export default function DashboardRoute() {
   return (
-    <div>
-      <h1 className="text-2xl font-semibold">Dashboard</h1>
-      <p className="text-muted-foreground">
-        Placeholder — modul Customer/Job/Invoice akan diisi di sini.
-      </p>
-    </div>
+    <Suspense fallback={null}>
+      <DashboardPage />
+    </Suspense>
   );
 }
