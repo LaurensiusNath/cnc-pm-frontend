@@ -6,6 +6,7 @@ import type {
   FakturPajakInput,
   GenerateInvoiceInput,
   UpdateInvoiceStatusInput,
+  UpdatePaymentBuktiPotongInput,
 } from "../schema";
 import type {
   Invoice,
@@ -90,6 +91,21 @@ export const invoiceService = {
   ): Promise<Payment> => {
     const { data } = await api.post<ApiSuccess<Payment>>(
       `/v1/invoices/${invoiceId}/payments`,
+      input,
+    );
+    return data.data;
+  },
+
+  // PATCH /invoices/{id}/payments/{payment_id}/bukti-potong-pph23 - route
+  // was still on an unmerged backend branch when this was written, see
+  // schema.ts's comment on updatePaymentBuktiPotongSchema. Owner/admin only.
+  updatePaymentBuktiPotong: async (
+    invoiceId: string,
+    paymentId: string,
+    input: UpdatePaymentBuktiPotongInput,
+  ): Promise<Payment> => {
+    const { data } = await api.patch<ApiSuccess<Payment>>(
+      `/v1/invoices/${invoiceId}/payments/${paymentId}/bukti-potong-pph23`,
       input,
     );
     return data.data;
