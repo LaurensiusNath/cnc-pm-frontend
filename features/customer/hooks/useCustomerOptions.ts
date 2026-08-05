@@ -8,18 +8,17 @@ import { customerKeys } from "../api/queryKeys";
 // job list and the customer field on the create-job form, and intended to
 // be reused again for Invoice's own customer field later.
 //
-// A separate query rather than delegating to useCustomers: this one must
-// skip fetching entirely while the query is blank (enabled: false) - an
-// unopened/untouched combobox shouldn't fire a request at all, matching
-// Base UI's own documented async-search pattern. useCustomers itself
-// can't have that behavior baked in since the customer list page
-// legitimately wants results with no search term typed yet.
+// Always enabled (no `enabled: trimmed !== ""` gate) - the popup shows
+// the first page of all customers as soon as it opens (RemoteSearchSelect's
+// own Combobox popup is already scrollable, see components/ui/combobox.tsx),
+// not just after the user starts typing. Search narrows that list, it isn't
+// the only way to populate it - a plain empty `search` param already
+// returns the unfiltered list, same as the Customer list page's own default.
 export function useCustomerOptions(query: string) {
   const trimmed = query.trim();
   const { data, isFetching } = useQuery({
     queryKey: customerKeys.list({ search: trimmed, limit: 20 }),
     queryFn: () => customerService.list({ search: trimmed, limit: 20 }),
-    enabled: trimmed !== "",
   });
   return { data: data?.customers, isFetching };
 }
