@@ -109,11 +109,9 @@ export type AddPaymentInput = z.output<typeof addPaymentSchema>;
 // PATCH /invoices/{id}/payments/{payment_id}/bukti-potong-pph23 - lets an
 // owner/admin fill in bukti_potong_pph23_ref AFTER a payment already
 // exists (distinct from addPaymentSchema's optional field above, which
-// only covers setting it at payment-creation time). Backend route was
-// still on an unmerged branch (feature/payment-bukti-potong-update) as of
-// this schema being written - shape read directly from that branch's
-// handler.go, not guessed. Re-verify live once merged before relying on
-// this in production.
+// only covers setting it at payment-creation time). Backend PR #23
+// (merged) - shape confirmed via a live end-to-end request against the
+// running endpoint, not just read from source.
 export const updatePaymentBuktiPotongSchema = z.object({
   bukti_potong_pph23_ref: z
     .string()

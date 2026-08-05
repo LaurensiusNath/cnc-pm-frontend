@@ -96,9 +96,8 @@ export const invoiceService = {
     return data.data;
   },
 
-  // PATCH /invoices/{id}/payments/{payment_id}/bukti-potong-pph23 - route
-  // was still on an unmerged backend branch when this was written, see
-  // schema.ts's comment on updatePaymentBuktiPotongSchema. Owner/admin only.
+  // PATCH /invoices/{id}/payments/{payment_id}/bukti-potong-pph23 - backend
+  // PR #23 (merged), live-verified end to end. Owner/admin only.
   updatePaymentBuktiPotong: async (
     invoiceId: string,
     paymentId: string,

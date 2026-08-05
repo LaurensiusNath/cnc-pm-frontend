@@ -13,11 +13,9 @@ interface UpdatePaymentBuktiPotongVariables {
 }
 
 // PATCH /invoices/{id}/payments/{payment_id}/bukti-potong-pph23 - backend
-// route was still on an unmerged branch (feature/payment-bukti-potong-
-// update) when this was written. See invoiceService.updatePaymentBuktiPotong
-// for the same caveat. One hook instance covers the whole PPh23 table
-// (many invoices/payments), invoiceId/paymentId are mutation variables -
-// same reasoning as useUpdateFakturPajakForReport.
+// PR #23 (merged), live-verified end to end. One hook instance covers the
+// whole PPh23 table (many invoices/payments), invoiceId/paymentId are
+// mutation variables - same reasoning as useUpdateFakturPajakForReport.
 export function useUpdatePaymentBuktiPotong() {
   const queryClient = useQueryClient();
 

@@ -1,10 +1,10 @@
 # API Contract — CNC Service Project Management App
-### v5 — disinkronkan dengan PR #16/#17/#20/#22 backend (2026-08-05, prep shell + Tax Report)
+### v5 — disinkronkan dengan PR #16/#17/#20/#22/#23 backend (2026-08-05, shell + Tax Report)
 ### Perubahan dari v4: tambah Modul Dashboard (`GET /dashboard/summary`) dan Modul
 ### Tax Report (`GET /reports/tax-summary`); dokumentasikan tipe `dateonly.Date`
 ### (Catatan Desain #8) — field tanggal-saja sekarang serialize `"YYYY-MM-DD"`,
-### bukan RFC3339, sejak PR #20; catat `PATCH .../bukti-potong-pph23` sebagai
-### **provisional** (backend belum merged saat versi ini ditulis)
+### bukan RFC3339, sejak PR #20; `PATCH .../bukti-potong-pph23` (PR #23) —
+### **merged dan sudah di-live-verify end-to-end** (bukan lagi provisional)
 
 > **Status di repo ini**: salinan manual dari repo backend (`cnc-pm-backend`), **read-only
 > reference** — lihat catatan di `CLAUDE.md` bagian "Referensi Dokumen". Kalau kontrak
@@ -200,10 +200,12 @@ Body: `{ amount (required), payment_method (required, transfer|cash|other), bukt
 ### `GET /api/v1/invoices/{id}/payments`
 Tanpa pagination, tanpa meta.
 
-### `PATCH /api/v1/invoices/{id}/payments/{payment_id}/bukti-potong-pph23` — **PROVISIONAL, backend belum merged**
-Body: `{ bukti_potong_pph23_ref (required, string) }`. Role `owner`/`admin` saja (`requireAdmin`, sama grup dengan `GET /users`/`GET /dashboard/summary`). Melengkapi `bukti_potong_pph23_ref` yang tidak diisi saat `POST .../payments` (field itu opsional di endpoint pembuatan payment) — dipakai dari halaman Laporan Pajak untuk melengkapi bukti potong PPh 23 per payment setelah faktanya.
+### `PATCH /api/v1/invoices/{id}/payments/{payment_id}/bukti-potong-pph23` — PR #23, **merged**
+Body: `{ bukti_potong_pph23_ref (required, string) }`. Role `owner`/`admin` saja (`requireAdmin`, sama grup dengan `GET /users`/`GET /dashboard/summary`). Melengkapi `bukti_potong_pph23_ref` yang tidak diisi saat `POST .../payments` (field itu opsional di endpoint pembuatan payment) — dipakai dari halaman Laporan Pajak untuk melengkapi bukti potong PPh 23 per payment setelah faktanya. Response `200`: object `Payment` (bentuk sama dengan `POST .../payments`).
 
-> **Status per 2026-08-05**: dibaca langsung dari branch backend `feature/payment-bukti-potong-update` (uncommitted saat dibaca, belum di-push ke remote) — **shape di atas bisa berubah sebelum merge**. Frontend yang mengonsumsi ini (`features/invoice/api/invoiceService.ts`) **belum boleh dianggap final** sampai backend benar-benar merge ke `main` dan di-verifikasi ulang lewat curl langsung. Jangan hapus catatan ini sampai itu terjadi dan endpoint ini dipindah ke tabel "Selesai" di Technical Debt.
+**Locking**: sama dengan `POST .../payments` — mengunci baris invoice yang sama (`GetInvoiceForUpdate`) sebelum evaluasi ulang status, supaya tidak lost-update kalau payment baru masuk nyaris bersamaan dengan bukti potong yang diisi belakangan (bisa jadi payment INI yang pertama kali membuat kondisi "lunas" terpenuhi). **Gerbang status BEDA dari `POST .../payments`**: endpoint ini tidak menggerbang status untuk operasinya sendiri (cuma koreksi dokumen historis), tapi auto-transition ke `paid` cuma jalan dari `draft`/`sent`/`overdue` (`overdue` sengaja diikutkan, `cancelled` sengaja dikecualikan — keputusan bisnis tidak boleh diam-diam ditimpa).
+
+> **Status per 2026-08-05**: **PR #23 merged ke `main`** (`a5ad12d`). Shape di atas **sudah di-live-verify end-to-end** terhadap endpoint yang jalan (bukan cuma baca kode) — alur lengkap customer→job→job cost→job completed→generate invoice→record payment→PATCH endpoint ini→cek `GET /reports/tax-summary` merefleksikan perubahan, semua sukses. `features/invoice/api/invoiceService.ts` boleh dianggap final.
 
 ---
 
