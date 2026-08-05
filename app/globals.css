@@ -7,6 +7,14 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  /* Brand blue - deliberately its OWN token, not wired into --color-primary
+     (which Button/Badge default variant etc. already use everywhere in the
+     app). Changing --primary would re-skin every existing page's buttons
+     as a side effect of this shell-only redesign, which is explicitly out
+     of scope here (see CLAUDE.md/PR notes: old pages are wrapped, not
+     restyled, in this PR). Use bg-brand/text-brand/border-brand only in
+     the new shell + Tax Report page. */
+  --color-brand: var(--brand);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
@@ -73,14 +81,19 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
+  /* Brand blue (#1C6CC3) lives ONLY in the sidebar/brand namespace, not in
+     --primary - see the @theme inline comment above for why. --sidebar
+     itself stays near-white (already was), matching the approved
+     white-dominant + blue-accent design. */
+  --brand: #1c6cc3;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary: #1c6cc3;
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-accent: #eaf2fb;
+  --sidebar-accent-foreground: #1c6cc3;
   --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-ring: #1c6cc3;
 }
 
 .dark {
@@ -107,14 +120,15 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
+  --brand: #4a90d9;
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary: #1c6cc3;
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-accent-foreground: #4a90d9;
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: #1c6cc3;
 }
 
 @layer base {
