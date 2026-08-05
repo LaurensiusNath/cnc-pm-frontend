@@ -192,6 +192,14 @@ Prinsip ini **sama persis dengan backend, tidak boleh lebih longgar**:
   `page.route()` bawaan Playwright, bukan proses Go+Postgres beneran
   di-docker-compose dari CI repo ini). Real untuk semua yang repo ini miliki,
   mocked persis di batas repo yang sebenarnya beda kepemilikan.
+- **Bukti verifikasi wajib konkret, bukan klaim naratif**: sebelum bilang
+  "test/lint/build hijau" di laporan balik, benar-benar jalankan
+  `npm run lint`, `npx tsc --noEmit`, `npx jest --ci`, `npm run build` dan
+  sertakan ringkasan pass/fail-nya (jumlah test, error message kalau ada) —
+  ini bukan formalitas, sempat ada kejadian di repo backend klaim hijau
+  padahal ada package yang tidak compile. Sama berlaku untuk klaim "sudah
+  diverifikasi live": sertakan output command asli (curl/browser), bukan
+  cuma pernyataan "sudah dicoba dan jalan".
 
 ### 3b. Docker & CI — juga dari skeleton awal, bukan belakangan
 - `Dockerfile` multi-stage untuk Next.js (`output: 'standalone'`) dari skeleton
@@ -312,6 +320,37 @@ Jangan biarkan Invoice (atau modul berikutnya) "menemukan ulang" ini dari nol
   perlu dibatasi atau tidak untuk domain baru, lihat kerangka alasan di
   `docs/api-contract.md` Catatan Desain #6 vs #7, bukan asumsi salah satu
   polanya "yang benar" secara universal.
+- **Brand color (`#1C6CC3`) hidup di namespace CSS `--sidebar-*`**
+  (`app/globals.css` — pre-wired grayscale sejak skeleton awal, baru
+  benar-benar dipakai mulai PR #7 shell redesign), **bukan** di
+  `--primary`/`--secondary` yang dipakai `Button`/`Badge` default di
+  semua halaman lama. Supaya shell baru bisa dipasang tanpa mengubah
+  tampilan halaman lama sama sekali (nol perubahan visual di Job/
+  Customer/Invoice/Dashboard). Butuh warna brand di luar shell/sidebar?
+  Pakai token terpisah `--brand`/`--color-brand`, jangan ubah `--primary`.
+- **Floating panel/slide-over pakai `Sheet`** (`npx shadcn add sheet`,
+  Base UI) — khusus aksi sekunder yang cepat (edit satu field, dst),
+  **bukan** pengganti pola "halaman terpisah untuk form" untuk entitas
+  utama. Create Job/Customer/Invoice tetap halaman terpisah — `Sheet`
+  adalah pola tambahan untuk kasus yang lebih ringan, bukan menggantikan
+  pola lama.
+- **Edit satu field teks lewat floating panel: reuse `EditFieldPanel`**
+  (`components/EditFieldPanel.tsx`, generic, berbasis `Sheet` di atas) —
+  sudah ada sejak modul Tax Report (isi faktur pajak, isi bukti potong
+  PPh 23), jangan bikin varian baru per kebutuhan serupa.
+- **Print-friendly pakai `print:` variant Tailwind v4 bawaan**
+  (`print:hidden` dkk, lihat `TaxReportPage`/`AppSidebar`) — tidak perlu
+  `@media print` custom terpisah.
+- **Route slug tetap Inggris** (`/tax-report`, dst) meski label
+  sidebar/UI-nya Indonesia ("Laporan Pajak") — konsisten dengan semua
+  route existing (`/customers`, `/jobs`, `/invoices`), jangan campur
+  bahasa di URL.
+- **Komponen ber-API generic dipindah ke `components/` shared, bukan
+  diduplikasi per modul** — precedent: `Pagination` (diekstrak dari
+  Customer), `PeriodSelector` dan `AccessDenied` (diekstrak dari
+  Dashboard, dipindah saat Tax Report butuh hal identik). Kalau nemu
+  kebutuhan yang sama/nyaris sama lintas modul, pindahkan komponennya,
+  jangan copy-paste versi baru.
 
 ## Konvensi Kode
 

@@ -105,3 +105,20 @@ export const addPaymentSchema = z.object({
 
 export type AddPaymentFormValues = z.input<typeof addPaymentSchema>;
 export type AddPaymentInput = z.output<typeof addPaymentSchema>;
+
+// PATCH /invoices/{id}/payments/{payment_id}/bukti-potong-pph23 - lets an
+// owner/admin fill in bukti_potong_pph23_ref AFTER a payment already
+// exists (distinct from addPaymentSchema's optional field above, which
+// only covers setting it at payment-creation time). Backend PR #23
+// (merged) - shape confirmed via a live end-to-end request against the
+// running endpoint, not just read from source.
+export const updatePaymentBuktiPotongSchema = z.object({
+  bukti_potong_pph23_ref: z
+    .string()
+    .trim()
+    .min(1, "Nomor bukti potong wajib diisi"),
+});
+
+export type UpdatePaymentBuktiPotongInput = z.infer<
+  typeof updatePaymentBuktiPotongSchema
+>;

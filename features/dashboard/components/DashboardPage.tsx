@@ -3,15 +3,15 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
 
+import { AccessDenied } from "@/components/AccessDenied";
+import { PeriodSelector } from "@/components/PeriodSelector";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateOnly } from "@/lib/utils";
 
 import { useDashboardSummary } from "../hooks/useDashboardSummary";
-import { DashboardAccessDenied } from "./DashboardAccessDenied";
 import { FinancialSummaryCards } from "./FinancialSummaryCards";
 import { InvoiceStatusChart } from "./InvoiceStatusChart";
 import { JobStatusChart } from "./JobStatusChart";
-import { PeriodSelector } from "./PeriodSelector";
 import { ScheduledJobList } from "./ScheduledJobList";
 
 export function DashboardPage() {
@@ -56,7 +56,7 @@ export function DashboardPage() {
           ))}
         </div>
       ) : isForbidden ? (
-        <DashboardAccessDenied />
+        <AccessDenied resource="Dashboard" />
       ) : isError || !data ? (
         <p className="text-sm text-destructive">
           Gagal memuat ringkasan dashboard. Coba muat ulang halaman.

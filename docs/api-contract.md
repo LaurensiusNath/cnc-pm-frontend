@@ -1,8 +1,10 @@
 # API Contract — CNC Service Project Management App
-### v4 — disinkronkan dengan PR #15 backend (2026-08-02, prep modul Invoice frontend)
-### Perubahan dari v3: tambah `GET /jobs/{id}/invoice`; dokumentasikan `InvoiceListItem`
-### (field flat `job_code`/`customer_name` di `GET /invoices`); Catatan Desain #7 soal
-### state-machine `PATCH /invoices/{id}/status` dan keputusan pembatasan opsi status di UI
+### v5 — disinkronkan dengan PR #16/#17/#20/#22/#23 backend (2026-08-05, shell + Tax Report)
+### Perubahan dari v4: tambah Modul Dashboard (`GET /dashboard/summary`) dan Modul
+### Tax Report (`GET /reports/tax-summary`); dokumentasikan tipe `dateonly.Date`
+### (Catatan Desain #8) — field tanggal-saja sekarang serialize `"YYYY-MM-DD"`,
+### bukan RFC3339, sejak PR #20; `PATCH .../bukti-potong-pph23` (PR #23) —
+### **merged dan sudah di-live-verify end-to-end** (bukan lagi provisional)
 
 > **Status di repo ini**: salinan manual dari repo backend (`cnc-pm-backend`), **read-only
 > reference** — lihat catatan di `CLAUDE.md` bagian "Referensi Dokumen". Kalau kontrak
@@ -198,9 +200,69 @@ Body: `{ amount (required), payment_method (required, transfer|cash|other), bukt
 ### `GET /api/v1/invoices/{id}/payments`
 Tanpa pagination, tanpa meta.
 
+### `PATCH /api/v1/invoices/{id}/payments/{payment_id}/bukti-potong-pph23` — PR #23, **merged**
+Body: `{ bukti_potong_pph23_ref (required, string) }`. Role `owner`/`admin` saja (`requireAdmin`, sama grup dengan `GET /users`/`GET /dashboard/summary`). Melengkapi `bukti_potong_pph23_ref` yang tidak diisi saat `POST .../payments` (field itu opsional di endpoint pembuatan payment) — dipakai dari halaman Laporan Pajak untuk melengkapi bukti potong PPh 23 per payment setelah faktanya. Response `200`: object `Payment` (bentuk sama dengan `POST .../payments`).
+
+**Locking**: sama dengan `POST .../payments` — mengunci baris invoice yang sama (`GetInvoiceForUpdate`) sebelum evaluasi ulang status, supaya tidak lost-update kalau payment baru masuk nyaris bersamaan dengan bukti potong yang diisi belakangan (bisa jadi payment INI yang pertama kali membuat kondisi "lunas" terpenuhi). **Gerbang status BEDA dari `POST .../payments`**: endpoint ini tidak menggerbang status untuk operasinya sendiri (cuma koreksi dokumen historis), tapi auto-transition ke `paid` cuma jalan dari `draft`/`sent`/`overdue` (`overdue` sengaja diikutkan, `cancelled` sengaja dikecualikan — keputusan bisnis tidak boleh diam-diam ditimpa).
+
+> **Status per 2026-08-05**: **PR #23 merged ke `main`** (`a5ad12d`). Shape di atas **sudah di-live-verify end-to-end** terhadap endpoint yang jalan (bukan cuma baca kode) — alur lengkap customer→job→job cost→job completed→generate invoice→record payment→PATCH endpoint ini→cek `GET /reports/tax-summary` merefleksikan perubahan, semua sukses. `features/invoice/api/invoiceService.ts` boleh dianggap final.
+
 ---
 
-## 5. Modul Notification (baru — tidak ada di kontrak/ERD awal)
+## 5. Modul Dashboard
+
+### `GET /api/v1/dashboard/summary` — role `owner`/`admin` saja (403 untuk `teknisi`)
+Query: `period_from`, `period_to` (opsional, `YYYY-MM-DD`) — kalau salah satu/keduanya tidak diisi, default ke awal-akhir bulan berjalan (per-field independen, bukan "kalau salah satu kosong, keduanya default").
+
+Response `200`:
+```json
+{
+  "financial": {
+    "period": { "from": "2026-08-01", "to": "2026-08-31" },
+    "invoiced_total": 1665000, "received_total": 600000, "outstanding_total": 1065000,
+    "by_status": {
+      "draft": { "count": 0, "total": 0 }, "sent": { "count": 1, "total": 1665000 },
+      "paid": { "count": 0, "total": 0 }, "overdue": { "count": 0, "total": 0 },
+      "cancelled": { "count": 1, "total": 333000 }
+    }
+  },
+  "jobs": {
+    "by_status": { "requested": 1, "scheduled": 0, "in_progress": 1, "completed": 2, "cancelled": 0 },
+    "upcoming_7_days": [ { "id": "uuid", "job_code": "JOB-2026-0001", "customer_name": "...", "scheduled_date": "2026-08-06" } ],
+    "overdue_scheduled": [ { "id": "uuid", "job_code": "JOB-2026-0002", "customer_name": "...", "scheduled_date": "2026-08-01" } ]
+  }
+}
+```
+`invoiced_total` **exclude** invoice `draft`/`cancelled` (fix PR #17 — sebelumnya ikut menghitung `cancelled`, diverifikasi live sebelum modul frontend dibangun). `outstanding_total` **bisa negatif** — sengaja, itu sinyal diagnostik (lihat Catatan Desain #7 soal `PATCH /invoices/{id}/status` tanpa state-machine), **jangan di-clamp ke 0 di frontend**. `jobs.by_status` snapshot all-time, bukan scoped ke period.
+
+---
+
+## 6. Modul Tax Report (Laporan Pajak)
+
+### `GET /api/v1/reports/tax-summary` — role `owner`/`admin` saja (403 untuk `teknisi`)
+Query: `period_from`, `period_to` — sama persis semantiknya dengan `GET /dashboard/summary` (**duplikasi kode sengaja** di backend, `internal/taxreport/service.go`, bukan reuse dari `internal/dashboard` — alasan: loose coupling antar modul satelit sejajar, lihat komentar source).
+
+Response `200`:
+```json
+{
+  "period": { "from": "2026-08-01", "to": "2026-08-31" },
+  "ppn": {
+    "total_ppn_keluaran": 1665000,
+    "invoices": [ { "id": "uuid", "invoice_number": "INV-2026-0001", "job_code": "...", "customer_name": "...", "subtotal": 1500000, "tax_amount": 165000, "nomor_faktur_pajak": null } ]
+  },
+  "pph23": {
+    "total_estimasi": 16000,
+    "payments": [ { "id": "uuid", "invoice_id": "uuid", "invoice_number": "...", "customer_name": "...", "customer_type": "badan_usaha", "payment_date": "2026-08-02T10:00:00Z", "pph23_share_estimasi": 16000, "bukti_potong_pph23_ref": null } ]
+  }
+}
+```
+`ppn.invoices` cuma status `sent`/`paid`/`overdue` (exclude `draft`/`cancelled`, logic sama dengan `dashboard.invoiced_total`). `pph23.payments` **semua payment dalam period TANPA filter `customer_type`** — sengaja, modul ini tidak import package `customer` sama sekali; kalau mau menyembunyikan baris `perorangan` (yang `pph23_share_estimasi`-nya akan selalu 0), itu keputusan **display-layer frontend** (filter `pph23_share_estimasi !== 0`), bukan query backend.
+
+**Catatan format tanggal — beda antar dua field di response ini**: `period.from`/`period.to` pakai `dateonly.Date` (`"YYYY-MM-DD"` murni, lihat Catatan Desain #8), tapi `pph23.payments[].payment_date` masih `time.Time` polos (RFC3339 penuh, `"2026-08-02T10:00:00Z"`) — **tidak seragam**, verifikasi ke source kalau ragu, jangan asumsikan satu pola berlaku untuk semua field tanggal di response yang sama.
+
+---
+
+## 7. Modul Notification (baru — tidak ada di kontrak/ERD awal)
 
 Tidak ada endpoint HTTP publik untuk modul ini saat ini — murni internal, dipicu dari modul lain:
 - Job di-assign teknisi → email ke customer
@@ -255,6 +317,24 @@ Tidak ada endpoint HTTP publik untuk modul ini saat ini — murni internal, dipi
    read-only saja. Backend sendiri tetap tidak menegakkan apa-apa di luar validasi enum
    (konsisten dengan keputusan "belum perlu state-machine di backend" secara arsitektur) —
    pembatasan murni ditegakkan di layer UI, bukan API.
+8. **Kenapa ada tipe `dateonly.Date` terpisah (PR #20), bukan pakai `time.Time` polos untuk
+   field tanggal-saja?** Root cause bug yang diperbaiki: `Job.ScheduledDate`/`CompletedDate`,
+   `Invoice.DueDate` dulu bertipe `*time.Time` polos — `encoding/json` Go SELALU marshal
+   `time.Time` sebagai RFC3339 penuh (`"2026-08-15T00:00:00Z"`) walau jam-nya nol, bukan
+   `"2026-08-15"` seperti yang didokumentasikan di kontrak ini sebelumnya (ditemukan saat
+   modul frontend Invoice dibangun, 2026-08-02). `internal/dateonly.Date` (value type,
+   Marshal/UnmarshalJSON sendiri) memperbaiki ini di root cause, bukan di-workaround per
+   endpoint. **Migrasi belum menyeluruh**: field lama (`Job.ScheduledDate`/`CompletedDate`,
+   `Invoice.DueDate`) sudah dimigrasi ke tipe ini sejak PR #20, tapi **`taxreport.PPh23PaymentRef.PaymentDate`
+   masih `time.Time` polos** (lihat Modul Tax Report di atas) — field tanggal-saja BARU
+   (`taxreport.Period`) sudah pakai `dateonly.Date` sejak awal, field yang secara semantik
+   sebenarnya date+time (`payment_date`, dari `payments.created_at`) sengaja TIDAK dimigrasi
+   karena itu memang timestamp, bukan tanggal-saja — jangan asumsikan seragam, cek per field.
+   **Frontend**: `formatDateOnly()` (`lib/utils.ts`) masih dipertahankan sebagai lapisan
+   defensif (aman dipakai ke string yang sudah `"YYYY-MM-DD"`, no-op), komentarnya di kode
+   Invoice/Job **belum diperbarui** untuk mencerminkan fix ini — item housekeeping kecil yang
+   sengaja belum dikerjakan (di luar scope PR redesign shell/Tax Report), dicatat di sini
+   supaya tidak dianggap terlewat tanpa sadar.
 
 ---
 
