@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { useCustomer } from "../hooks/useCustomer";
 import { customerTypeOptions } from "../schema";
 import { DeleteCustomerDialog } from "./DeleteCustomerDialog";
+import { MachinesSection } from "./MachinesSection";
 
 interface CustomerDetailPageProps {
   customerId: string;
@@ -85,27 +86,7 @@ export function CustomerDetailPage({ customerId }: CustomerDetailPageProps) {
         </div>
       </dl>
 
-      <div>
-        <h2 className="mb-2 text-lg font-semibold">Mesin</h2>
-        {customer.machines.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Belum ada mesin terdaftar untuk customer ini.
-          </p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {customer.machines.map((machine) => (
-              <li key={machine.id} className="rounded-md border p-3 text-sm">
-                <p className="font-medium">{machine.machine_name}</p>
-                <p className="text-muted-foreground">
-                  {[machine.machine_type, machine.serial_number]
-                    .filter(Boolean)
-                    .join(" - ") || "-"}
-                </p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      <MachinesSection customerId={customer.id} machines={customer.machines} />
 
       <Link
         href="/customers"

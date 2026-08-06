@@ -47,3 +47,22 @@ export const updateCustomerSchema = createCustomerSchema.omit({
 });
 
 export type UpdateCustomerInput = z.output<typeof updateCustomerSchema>;
+
+// All 4 fields are plain text, which is exactly what EditFieldPanel
+// already supports (its `fields` prop was an array from day one, not
+// single-field-only despite the component's name/original doc comment) -
+// no new panel component needed for this, confirmed in Tahap 1 before
+// building MachinesSection.
+export const createMachineSchema = z.object({
+  machine_name: z.string().trim().min(1, "Nama mesin wajib diisi"),
+  machine_type: optionalText,
+  serial_number: optionalText,
+  // TODO: notes would read better as a multi-line <Textarea> - deferred,
+  // EditFieldPanel only renders <Input> per field for now (see its own
+  // comment). Revisit if/when another consumer actually needs
+  // multi-line, not speculatively now.
+  notes: optionalText,
+});
+
+export type CreateMachineFormValues = z.input<typeof createMachineSchema>;
+export type CreateMachineInput = z.output<typeof createMachineSchema>;

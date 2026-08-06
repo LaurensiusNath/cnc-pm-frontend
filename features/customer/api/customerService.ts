@@ -1,7 +1,11 @@
 import { api } from "@/lib/axios";
 import type { ApiSuccess } from "@/types/api";
 
-import type { CreateCustomerInput, UpdateCustomerInput } from "../schema";
+import type {
+  CreateCustomerInput,
+  CreateMachineInput,
+  UpdateCustomerInput,
+} from "../schema";
 import type {
   Customer,
   CustomerDetail,
@@ -59,6 +63,20 @@ export const customerService = {
   listMachines: async (customerId: string): Promise<Machine[]> => {
     const { data } = await api.get<ApiSuccess<Machine[]>>(
       `/v1/customers/${customerId}/machines`,
+    );
+    return data.data;
+  },
+
+  // PUT/DELETE for a single machine don't exist on the backend yet
+  // (confirmed live in Tahap 1 - both 404 "route not found") - only
+  // create is wired up here, don't add edit/delete methods speculatively.
+  createMachine: async (
+    customerId: string,
+    input: CreateMachineInput,
+  ): Promise<Machine> => {
+    const { data } = await api.post<ApiSuccess<Machine>>(
+      `/v1/customers/${customerId}/machines`,
+      input,
     );
     return data.data;
   },
