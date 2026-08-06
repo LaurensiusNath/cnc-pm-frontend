@@ -1,6 +1,7 @@
 import { api } from "@/lib/axios";
 import type { ApiSuccess } from "@/types/api";
 
+import type { CreateUserInput } from "../schema";
 import type { User, UserRole } from "../types";
 
 export const userService = {
@@ -11,6 +12,12 @@ export const userService = {
     const { data } = await api.get<ApiSuccess<User[]>>("/v1/users", {
       params: role ? { role } : undefined,
     });
+    return data.data;
+  },
+
+  // POST /users - same adminGroup restriction as list().
+  create: async (input: CreateUserInput): Promise<User> => {
+    const { data } = await api.post<ApiSuccess<User>>("/v1/users", input);
     return data.data;
   },
 };
