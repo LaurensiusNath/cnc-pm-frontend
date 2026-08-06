@@ -39,7 +39,7 @@ function mockAuthMe(role: "owner" | "admin" | "teknisi") {
 }
 
 describe("AppSidebar", () => {
-  it("shows every nav item, including Dashboard and Laporan Pajak, for an owner", async () => {
+  it("shows every nav item in both groups for an owner, including Administrasi", async () => {
     mockAuthMe("owner");
     renderWithProviders(<AppSidebar />);
 
@@ -48,9 +48,13 @@ describe("AppSidebar", () => {
     expect(screen.getByRole("link", { name: /customer/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /^invoice$/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /laporan pajak/i })).toBeInTheDocument();
+    expect(screen.getByText("Operasional")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /pengguna/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /pengaturan/i })).toBeInTheDocument();
+    expect(screen.getByText("Administrasi")).toBeInTheDocument();
   });
 
-  it("hides Dashboard and Laporan Pajak for a teknisi viewer, keeps the rest", async () => {
+  it("hides Dashboard, Laporan Pajak, and the entire Administrasi group (incl. its label) for a teknisi viewer", async () => {
     mockAuthMe("teknisi");
     renderWithProviders(<AppSidebar />);
 
@@ -59,6 +63,11 @@ describe("AppSidebar", () => {
     expect(screen.getByRole("link", { name: /^invoice$/i })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /dashboard/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /laporan pajak/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /pengguna/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /pengaturan/i })).not.toBeInTheDocument();
+    // The group itself - not just its items - is absent, per the "empty
+    // group isn't rendered at all" rule.
+    expect(screen.queryByText("Administrasi")).not.toBeInTheDocument();
   });
 
   it("marks the Job item active when the current path is a job detail route", async () => {
