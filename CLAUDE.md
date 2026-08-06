@@ -351,6 +351,39 @@ Jangan biarkan Invoice (atau modul berikutnya) "menemukan ulang" ini dari nol
   Dashboard, dipindah saat Tax Report butuh hal identik). Kalau nemu
   kebutuhan yang sama/nyaris sama lintas modul, pindahkan komponennya,
   jangan copy-paste versi baru.
+- **Nav sidebar terstruktur grup** (`features/nav/navItems.ts` →
+  `navGroups: NavGroup[]`, bukan array item flat lagi sejak modul User
+  Management) — tiap grup punya `label` + `items: NavItem[]`, `AppSidebar`
+  filter DUA lapis: item per role (pola lama, sudah ada sejak PR #7),
+  **lalu grup itu sendiri** — grup yang hasilnya kosong (semua item
+  terfilter habis) **tidak dirender sama sekali**, termasuk label dan
+  separator-nya, bukan cuma disembunyikan isinya. Tambah item nav baru ke
+  grup yang paling sesuai (`Operasional` untuk fitur operasional
+  sehari-hari, `Administrasi` untuk fitur admin/setup) — jangan bikin
+  grup baru kecuali benar-benar kategori berbeda.
+- **`AccessDenied` vs read-only — dua pola BEDA tergantung apa yang
+  sebenarnya dilakukan backend**, jangan pilih salah satu tanpa cek dulu:
+  - Kalau endpoint-nya **genuinely 403 di backend untuk role tertentu**
+    (`GET /dashboard/summary`, `GET /reports/tax-summary`, `GET /users` —
+    semua di `adminGroup`) → tampilkan `<AccessDenied resource="..." />`
+    kalau halaman diakses langsung (URL manual) oleh role yang tidak
+    diizinkan. Ini bukan pilihan UI, itu mencerminkan penolakan asli dari
+    API.
+  - Kalau endpoint-nya **terbuka untuk semua role login, tapi cuma
+    owner/admin yang boleh mengubah** (`GET /settings/company` — dibuka
+    untuk semua role, `PUT`-nya saja yang `requireAdmin`) → **JANGAN**
+    tampilkan `AccessDenied` untuk role lain, itu akan berbohong soal apa
+    yang backend sebenarnya izinkan. Render halamannya, tapi form dalam
+    mode **read-only** (field disabled, tombol submit disembunyikan/
+    disabled dengan alasan) untuk role yang tidak boleh submit. Nav
+    entry-nya sendiri boleh tetap disembunyikan dari role itu (keputusan
+    UX terpisah dari soal backend mengizinkan GET atau tidak) — dua
+    keputusan itu tidak harus selaras, lihat `features/settings/
+    CompanySettingsPage.tsx`.
+  - Cara membedakan dua kasus di atas: **cek langsung ke source
+    `RegisterRoutes` handler-nya** (apakah middleware role dipasang di
+    level route GET juga, atau cuma di route mutasinya) — jangan asumsi
+    dari nama endpoint atau dari pola modul lain yang mirip.
 
 ## Konvensi Kode
 
