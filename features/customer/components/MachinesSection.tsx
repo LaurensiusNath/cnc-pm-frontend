@@ -10,7 +10,6 @@ import { useCreateMachine } from "../hooks/useCreateMachine";
 import {
   createMachineSchema,
   type CreateMachineFormValues,
-  type CreateMachineInput,
 } from "../schema";
 import type { Machine } from "../types";
 
@@ -33,14 +32,18 @@ export function MachinesSection({ customerId, machines }: MachinesSectionProps) 
   // (values: TValues) => void, i.e. the PRE-transform form-values shape
   // (CreateMachineFormValues, optional keys), not the validated/
   // transformed output createMachine.mutate() actually needs
-  // (CreateMachineInput, required-but-possibly-undefined keys). At
-  // RUNTIME, zodResolver already ran the transform by the time this
-  // fires (blank optional fields really are `undefined` here, not `""`)
-  // - only the TYPE is imprecise, which is exactly the documented
-  // limitation. Asserting the type here (not touching EditFieldPanel)
-  // is the correct minimal fix.
+  // (CreateMachineInput, required-but-possibly-undefined keys). `values`
+  // has ALREADY passed through createMachineSchema once (zodResolver ran
+  // it before calling onSubmit) - re-parsing here re-derives the
+  // properly-typed output straight from the schema's own inference
+  // instead of a hand-asserted `as CreateMachineInput`. A plain `as`
+  // would have stayed "accidentally correct" only as long as
+  // optionalText's transform never changes a field's VALUE type (it
+  // currently only changes key presence, "" -> undefined) - a future
+  // transform that did change a value type would silently typecheck
+  // through a cast without this re-parse catching it.
   function handleSubmit(values: CreateMachineFormValues) {
-    createMachine.mutate(values as CreateMachineInput, {
+    createMachine.mutate(createMachineSchema.parse(values), {
       onSuccess: () => setIsAdding(false),
     });
   }
