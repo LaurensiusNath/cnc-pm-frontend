@@ -11,9 +11,17 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# BACKEND_URL only matters for the rewrites() function, which next.config.js
-# reads at request time in the running server, not at build time - no
-# build-time ARG needed here.
+# BACKEND_URL must be a build-time ARG, not just a runtime `docker run -e`/
+# compose `environment:` value like the comment here used to claim: next
+# build's output: 'standalone' mode calls rewrites() once during the build
+# and freezes the resolved destination into .next/routes-manifest.json -
+# it is NOT re-evaluated when the standalone server boots. Verified by
+# inspecting routes-manifest.json in a built image: the destination stayed
+# "http://localhost:8080/api/:path*" (next.config.js's own hardcoded
+# fallback) regardless of what BACKEND_URL was set to at `docker run`/
+# `docker compose up` time.
+ARG BACKEND_URL=http://host.docker.internal:8080
+ENV BACKEND_URL=$BACKEND_URL
 RUN npm run build
 
 # output: 'standalone' (next.config.js) traces the minimal set of files and

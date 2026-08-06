@@ -9,7 +9,19 @@
 # under `next dev`.
 services:
   frontend:
-    build: .
+    build:
+      context: .
+      # Must be a build arg, not just the `environment:` below - next
+      # build freezes rewrites()'s resolved destination into
+      # .next/routes-manifest.json at build time (output: 'standalone'),
+      # it is not re-read when the container starts. See the matching
+      # comment in Dockerfile for how this was verified. Both this arg
+      # and the environment: value below need to match/change together -
+      # the env var still exists for local `next dev` (no Docker build
+      # step involved there) and so a human reading just docker-compose
+      # up's output isn't misled about what's actually driving the image.
+      args:
+        BACKEND_URL: ${BACKEND_URL:-http://host.docker.internal:8080}
     ports:
       - "3000:3000"
     environment:
